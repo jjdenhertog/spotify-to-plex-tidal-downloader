@@ -1,0 +1,5 @@
+.tidal-dl.*
+.vscode/**
+*.pyc
+__pycache__/*
+data/

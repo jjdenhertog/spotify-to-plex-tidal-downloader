@@ -1,0 +1,4 @@
+Dockerfile
+data/
+.gitignore
+.gitattributes
