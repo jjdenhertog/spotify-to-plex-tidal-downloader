@@ -1,5 +1,5 @@
 
-# Tidal Music Downloader
+# Tidal Downloader
 
 This implementation uses the `missing_tracks_tidal.txt` from [Spotify to Plex](https://github.com/jjdenhertog/spotify-to-plex) to use [Tiddl](https://github.com/oskvr37/tiddl) to download the tracks. [Disclaimer](https://github.com/yaronzz/Tidal-Media-Downloader?tab=readme-ov-file#-disclaimer).
 
@@ -23,7 +23,7 @@ You can also use it without [Spotify to Plex](https://github.com/jjdenhertog/spo
 
 You can install the service using Docker. This will install [Tiddl](https://github.com/oskvr37/tiddl) extended with some extra scripts to do the syncing. 
 
-🚨 **Important: ** You need to bind the same volume of [Spotify to Plex](https://github.com/jjdenhertog/spotify-to-plex) to allow for seamless integration
+🚨 IMPORTANT: You need to bind the same volume of [Spotify to Plex](https://github.com/jjdenhertog/spotify-to-plex) to allow for seamless integration
 
 ### Binding volume
 
@@ -64,7 +64,7 @@ services:
 
 ### First time login
 
-Before you can use this service you need to login to tidal-dl. Login to the console of the running container:
+Before you can use this service you need to login to Tiddl. Login to the console of the running container:
 
 ```bash
 docker exec -it spotify-to-plex-tidal-downloader bash
@@ -85,6 +85,8 @@ The image contains the script `download.sh` which can process a text file that c
 ```bash
 docker exec spotify-to-plex-tidal-downloader sh -c "cd /app && ./download.sh missing_tracks_tidal.txt"
 ```
+
+The file `missing_tracks_tidal.txt` is expected to be located in `/app/config`. If the file is not available it will not work.
 
 ### Logging
 
