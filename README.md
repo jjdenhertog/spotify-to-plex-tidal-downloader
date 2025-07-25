@@ -108,7 +108,7 @@ touch tiddl_downloads.log
 
 ## Download quality
 
-Download quality can be set in the tiddl_settings.json file. 
+Download quality can be set in the `tiddl_settings.json` file. 
 Supported options are "Low" "Normal" "High" & "Master" per [Tiddl docs](https://github.com/oskvr37/tiddl?tab=readme-ov-file#download-quality)
 
 
