@@ -5,7 +5,7 @@ CONFIG_DIR="/app/config"
 LINKS_FILE="$CONFIG_DIR/$1"
 LOG_FILE="$CONFIG_DIR/tidal_dl_logs.json"
 TOKEN_FILE="$CONFIG_DIR/tiddl_settings.json"
-TARGET_TOKEN_FILE="/root/.tiddl_config.json"
+TARGET_TOKEN_FILE="/root/tiddl.json"
 
 # Constants
 TIME_LIMIT=$((48 * 60 * 60)) # 48 hours in seconds
@@ -84,7 +84,7 @@ main() {
     fi
 
     if [[ -f "$TOKEN_FILE" ]]; then
-        if jq -e '.token' "$TOKEN_FILE" >/dev/null 2>&1; then
+        if jq -e '.auth' "$TOKEN_FILE" >/dev/null 2>&1; then
             log "Token file contains 'token'. Copying to $TARGET_TOKEN_FILE..."
             cp "$TOKEN_FILE" "$TARGET_TOKEN_FILE"
         else
@@ -100,7 +100,7 @@ main() {
     log "Download process completed."
 
     log "Storing token."
-    cp /root/.tiddl_config.json /app/config/tiddl_settings.json
+    cp /root/tiddl.json /app/config/tiddl_settings.json
 }
 
 main "$@"
