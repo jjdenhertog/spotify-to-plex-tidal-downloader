@@ -18,12 +18,4 @@
     "size": 1280,
     "filename": "cover.jpg"
   },
-  "auth": {
-    "token": "<INSERT AUTH TOKEN>",
-    "refresh_token": "<INSERT REFRESH TOKEN>",
-    "expires": EXPIRY,
-    "user_id": "USERID",
-    "country_code": "COUNTRY"
-  },
-  "omit_cache": false
 }
