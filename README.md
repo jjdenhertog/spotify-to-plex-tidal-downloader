@@ -15,6 +15,7 @@ You can also use it without [Spotify to Plex](https://github.com/jjdenhertog/spo
   * [First time login](#first-time-login)
 * [Running the synchronization](#running-the-synchronization)
   * [Logging](#logging)
+* [Download quality](#download-quality)
 * [Support This Open-Source Project ❤️](#support-this-open-source-project-️)
 * [Libraries and reference](#libraries-and-reference)
 * [Disclaimer](#disclaimer)
@@ -70,7 +71,14 @@ Before you can use this service you need to login to Tiddl. Login to the console
 docker exec -it spotify-to-plex-tidal-downloader bash
 ```
 
-Open the Tidal Media Downloader and login. After the login is successful you can start using this service.
+Open the Tidal Media Downloader and login. 
+
+
+```bash
+tiddl auth login
+```
+
+After the login is successful you can start using this service.
 
 ```bash
 tiddl
@@ -96,6 +104,13 @@ When you run this via a task manager or something similar you can store the logs
 docker exec spotify-to-plex-tidal-downloader sh -c "cd /app && ./download.sh missing_tracks_tidal.txt" > /volume2/Share/tiddl_downloads.log
 touch tiddl_downloads.log
 ```
+-----------
+
+## Download quality
+
+Download quality can be set in the `tiddl_settings.json` file. 
+Supported options are "Low" "Normal" "High" & "Master" per [Tiddl docs](https://github.com/oskvr37/tiddl?tab=readme-ov-file#download-quality)
+
 
 ------------
 
