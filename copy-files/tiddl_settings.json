@@ -1,10 +1,29 @@
 {
-    "settings": {
-        "download_path": "/app/download",
-        "track_quality": "HI_RES_LOSSLESS",
-        "track_template": "{artist}/{album}/{number} - {artist} - {title}",
-        "album_template": "{artist}/{album}/{number} - {artist} - {title}",
-        "playlist_template": "Playlists/{PlaylistName}",
-        "file_extension": ""
-    }
+  "template": {
+    "track": "{artist} - {title}",
+    "video": "{artist} - {title}",
+    "album": "{album_artist}/{album}/{number:02d}. {title}",
+    "playlist": "Playlists/{PlaylistName}"
+  },
+  "download": {
+    "quality": "high",
+    "path": "/app/download",
+    "threads": 4,
+    "singles_filter": "none",
+    "embed_lyrics": false,
+    "download_video": false
+  },
+  "cover": {
+    "save": false,
+    "size": 1280,
+    "filename": "cover.jpg"
+  },
+  "auth": {
+    "token": "<INSERT AUTH TOKEN>",
+    "refresh_token": "<INSERT REFRESH TOKEN>",
+    "expires": EXPIRY,
+    "user_id": "USERID",
+    "country_code": "COUNTRY"
+  },
+  "omit_cache": false
 }
