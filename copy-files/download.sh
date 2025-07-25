@@ -66,7 +66,7 @@ process_links() {
         fi
 
         # Execute tidal-dl command safely
-        if tiddl $link >/dev/null 2>&1; then
+        if tiddl url $link download >/dev/null 2>&1; then
             log "Download successful for: $link"
             update_log "$link"
         else
