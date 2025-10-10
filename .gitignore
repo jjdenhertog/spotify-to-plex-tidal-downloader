@@ -3,3 +3,8 @@
 *.pyc
 __pycache__/*
 data/
+
+# Local development
+storage/
+downloads/
+.claude

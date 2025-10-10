@@ -10,10 +10,13 @@ You can also use it without [Spotify to Plex](https://github.com/jjdenhertog/spo
 # Table of Contents
 * [Installation](#installation)
   * [Binding volume](#binding-volume)
+  * [Environment Variables](#environment-variables)
   * [Docker installation](#docker-installation)
   * [Portainer installation](#portainer-installation)
   * [First time login](#first-time-login)
 * [Running the synchronization](#running-the-synchronization)
+  * [Automatic Scheduling](#automatic-scheduling)
+  * [Manual Execution](#manual-execution)
   * [Logging](#logging)
 * [Support This Open-Source Project ❤️](#support-this-open-source-project-️)
 * [Libraries and reference](#libraries-and-reference)
@@ -21,27 +24,58 @@ You can also use it without [Spotify to Plex](https://github.com/jjdenhertog/spo
 
 ## Installation
 
-You can install the service using Docker. This will install [Tiddl](https://github.com/oskvr37/tiddl) extended with some extra scripts to do the syncing. 
+You can install the service using Docker. This will install [Tiddl](https://github.com/oskvr37/tiddl) with an automated scheduler that runs daily at 15:00 by default.
 
 🚨 IMPORTANT: You need to bind the same volume of [Spotify to Plex](https://github.com/jjdenhertog/spotify-to-plex) to allow for seamless integration
 
 ### Binding volume
 
-All the configuration data is stored in the `/app/config` folder, you need to add it as a volume for persistent storage. In this folder you can add text files folder for downloading. The text files should contain Tidal links structure like the [example](misc/example.txt).
+**Important**: The `/app/config` folder should be bound to the **same volume** as [Spotify to Plex](https://github.com/jjdenhertog/spotify-to-plex) for seamless integration.
 
-All the download files are stored in `/app/download` folder, link that to the volume where the media files will be stored.
+**How it works:**
+- Spotify to Plex generates `missing_tracks_tidal.txt` and `missing_albums_tidal.txt` in its config directory
+- Both containers share the same `/app/config` volume
+- Tidal Downloader automatically reads these files and downloads the tracks
+- Download logs are stored in `/app/config/download_logs/` (persisted in the shared volume)
+
+**Volumes to bind:**
+- `/app/config` - Shared configuration and logs (must be the same as Spotify to Plex config volume)
+- `/app/download` - Downloaded music files (link to your media library folder)
+
+**Note**: You can also use this service standalone by manually creating text files in `/app/config` with Tidal links structured like the [example](misc/example.txt).
+
+### Environment Variables
+
+The scheduler can be configured using environment variables:
+
+- `CRON_SCHEDULE`: Cron expression for scheduling downloads (default: `0 15 * * *` - daily at 15:00)
+- `TZ`: Timezone for the scheduler (default: `UTC`)
+
+The scheduler will automatically process both `missing_tracks_tidal.txt` and `missing_albums_tidal.txt` if they exist. Files that don't exist or are empty will be skipped gracefully.
 
 ### Docker installation
 
 ```sh
 docker run -d \
-    -v /local/directory/:/app/config:rw \
-    -v /local/directory/:/app/download:rw \
+    -v /path/to/spotify-to-plex/config:/app/config:rw \
+    -v /path/to/music/library:/app/download:rw \
+    -e TZ=UTC \
+    -e CRON_SCHEDULE="0 15 * * *" \
     --name=spotify-to-plex-tidal-downloader \
-    --network=host \
-    --restart on-failure:4 \
-    jjdenhertog/spotify-to-plex-tidal-downloader \
-    bash -c "sleep infinity"
+    --restart unless-stopped \
+    jjdenhertog/spotify-to-plex-tidal-downloader
+```
+
+**Example with actual paths:**
+```sh
+docker run -d \
+    -v /volume1/docker/spotify-to-plex/config:/app/config:rw \
+    -v /volume1/music:/app/download:rw \
+    -e TZ=Europe/Amsterdam \
+    -e CRON_SCHEDULE="0 15 * * *" \
+    --name=spotify-to-plex-tidal-downloader \
+    --restart unless-stopped \
+    jjdenhertog/spotify-to-plex-tidal-downloader
 ```
 
 ### Portainer installation
@@ -55,11 +89,28 @@ services:
         container_name: spotify-to-plex-tidal-downloader
         restart: unless-stopped
         volumes:
-            - '/local/directory:/app/config'
-            - '/local/directory:/app/download'
-        network_mode: "host"
+            - '/path/to/spotify-to-plex/config:/app/config'
+            - '/path/to/music/library:/app/download'
+        environment:
+            - TZ=UTC
+            - CRON_SCHEDULE=0 15 * * *
         image: 'jjdenhertog/spotify-to-plex-tidal-downloader:latest'
-        command: bash -c "sleep infinity"
+```
+
+**Example with actual paths:**
+```yaml
+version: '3.3'
+services:
+    spotify-to-plex-tidal-downloader:
+        container_name: spotify-to-plex-tidal-downloader
+        restart: unless-stopped
+        volumes:
+            - '/volume1/docker/spotify-to-plex/config:/app/config'
+            - '/volume1/music:/app/download'
+        environment:
+            - TZ=Europe/Amsterdam
+            - CRON_SCHEDULE=0 2,14 * * *
+        image: 'jjdenhertog/spotify-to-plex-tidal-downloader:latest'
 ```
 
 ### First time login
@@ -73,28 +124,53 @@ docker exec -it spotify-to-plex-tidal-downloader bash
 Open the Tidal Media Downloader and login. After the login is successful you can start using this service.
 
 ```bash
-tiddl
+tiddl auth login
 ```
 
 -----------
 
 ## Running the synchronization
 
-The image contains the script `download.sh` which can process a text file that contains links that can be processed by Tiddl. The easiest way to execute the script is by using `docker exec`. Using the command below.
+### Automatic Scheduling
+
+The service automatically runs downloads based on the configured `CRON_SCHEDULE`. By default, it runs every day at 15:00 and processes these files sequentially:
+
+1. `missing_tracks_tidal.txt`
+2. `missing_albums_tidal.txt`
+
+Both files are expected to be located in `/app/config`. If a file doesn't exist or is empty, it will be skipped gracefully, and the scheduler will continue with the next file.
+
+### Manual Execution
+
+You can also manually trigger downloads using `docker exec`:
 
 ```bash
+# Run for tracks
 docker exec spotify-to-plex-tidal-downloader sh -c "cd /app && ./download.sh missing_tracks_tidal.txt"
-```
 
-The file `missing_tracks_tidal.txt` is expected to be located in `/app/config`. If the file is not available it will not work.
+# Run for albums
+docker exec spotify-to-plex-tidal-downloader sh -c "cd /app && ./download.sh missing_albums_tidal.txt"
+```
 
 ### Logging
 
-When you run this via a task manager or something similar you can store the logs using this command.
+The service provides comprehensive logging:
+
+- **Scheduler logs**: Visible via `docker logs spotify-to-plex-tidal-downloader`
+- **Download logs**: Stored in `/app/config/download_logs/` (timestamped for each run)
+- **Error logs**: Stored in `/app/config/error_log.txt`
+
+To view real-time scheduler logs:
 
 ```bash
-docker exec spotify-to-plex-tidal-downloader sh -c "cd /app && ./download.sh missing_tracks_tidal.txt" > /volume2/Share/tiddl_downloads.log
-touch tiddl_downloads.log
+docker logs -f spotify-to-plex-tidal-downloader
+```
+
+To view the latest download log:
+
+```bash
+ls -lt /path/to/config/download_logs/ | head -n 2
+cat /path/to/config/download_logs/<latest-log-file>
 ```
 
 ------------

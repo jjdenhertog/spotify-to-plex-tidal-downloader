@@ -1,0 +1,12 @@
+services:
+  tidal-downloader:
+    image: jjdenhertog/spotify-to-plex-tidal-downloader:dev
+    container_name: spotify-to-plex-tidal-downloader
+    volumes:
+      - ./storage:/app/config
+      - ./downloads:/app/download
+    environment:
+      - TZ=UTC
+      # Run every 5 minutes for local testing (change to "0 */12 * * *" for production)
+      - CRON_SCHEDULE=*/5 * * * *
+    restart: unless-stopped

@@ -1,74 +1,60 @@
-# Builder stage
-FROM ubuntu:20.04 AS builder
+FROM ubuntu:22.04
 
 # Set a default shell
 SHELL ["/bin/bash", "-c"]
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Updates and installs
-RUN apt update && \
-    apt -y install software-properties-common curl && \
-    add-apt-repository ppa:deadsnakes/ppa && \
-    apt update && \
-    apt -y install \
+# Install system dependencies and Python 3.11 (available in Ubuntu 22.04 by default)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
         python3.11 \
         python3.11-venv \
         python3.11-dev \
+        python3-pip \
         build-essential \
-        nano \
+        curl \
+        ca-certificates \
         jq && \
     rm -rf /var/lib/apt/lists/*
 
-# Install the latest pip using get-pip.py
-RUN curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3.11 get-pip.py && \
-    rm get-pip.py
+# Update pip for Python 3.11
+RUN python3.11 -m pip install --upgrade pip
 
-# Copy necessary files to the builder
-COPY copy-files/ /copy-files/
-
-# Final stage
-FROM ubuntu:20.04
-
-# Set a default shell
-SHELL ["/bin/bash", "-c"]
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Updates and installs
-RUN apt update && \
-    apt -y install software-properties-common curl && \
-    add-apt-repository ppa:deadsnakes/ppa && \
-    apt update && \
-    apt -y install \
-        python3.11 \
-        python3.11-venv \
-        python3.11-dev \
-        build-essential \
-        nano \
-        jq && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install the latest pip using get-pip.py
-RUN curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3.11 get-pip.py && \
-    rm get-pip.py
-
-# Install tiddl
-RUN pip3 install --no-cache-dir tiddl --upgrade
-RUN pip3 install --no-cache-dir mutagen --upgrade
+# Install Python packages
+RUN pip3.11 install --no-cache-dir \
+    tiddl \
+    mutagen \
+    supervisor \
+    apscheduler \
+    pytz \
+    tzdata
 
 # Set up the container environment
 RUN mkdir -p /app/download && \
-    mkdir -p /app/config
+    mkdir -p /app/config && \
+    mkdir -p /app/config/download_logs && \
+    mkdir -p /var/log/supervisor && \
+    chmod 755 /app/config
 
-# Copy files from the builder stage
-COPY --from=builder /copy-files/download.sh /app/download.sh
-COPY --from=builder /copy-files/tiddl_settings.json /root/.tiddl_config.json
+# Copy application files
+COPY copy-files/download.sh /app/download.sh
+COPY copy-files/scheduler.py /app/scheduler.py
+COPY copy-files/tiddl_settings.json /root/.tiddl_config.json
+COPY copy-files/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY docker-entrypoint.sh /docker-entrypoint.sh
 
 # Set permissions
-RUN chmod +x /app/download.sh
+RUN chmod +x /app/download.sh && \
+    chmod +x /app/scheduler.py && \
+    chmod +x /docker-entrypoint.sh
 
-# Entry point configuration
-ENTRYPOINT []
+# Set default environment variables
+ENV TZ=UTC \
+    CRON_SCHEDULE="0 */12 * * *"
+
+# Set entrypoint for initialization
+ENTRYPOINT ["/docker-entrypoint.sh"]
+
+# Start supervisor to manage the scheduler service
+CMD ["supervisord", "-n", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
