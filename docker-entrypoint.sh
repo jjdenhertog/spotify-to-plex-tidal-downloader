@@ -43,7 +43,8 @@ if [ -f /app/config/tiddl_settings.json ]; then
         echo "   tiddl"
     fi
 else
-    # Set default tiddl download folder to /app/download
+    # Set default tiddl download folder to /app/download (tiddl config prompts the create of config file)
+    tiddl config
     if [ -f /root/tiddl.json ]; then
         jq '.download.path="/app/download" | .download.scan_path="/app/download"' /root/tiddl.json > /root/tiddl.json.tmp && \
         mv /root/tiddl.json.tmp /root/tiddl.json
