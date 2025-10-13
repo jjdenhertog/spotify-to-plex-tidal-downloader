@@ -14,6 +14,7 @@ RUN apt-get update && \
         python3-pip \
         build-essential \
         curl \
+        ffmpeg \
         ca-certificates \
         jq && \
     rm -rf /var/lib/apt/lists/*

@@ -1,6 +1,6 @@
 {
     "name": "@jjdenhertog/spotify-to-plex-tidal-downloader",
-    "version": "1.0.77",
+    "version": "1.0.79",
     "description": "Tiddl implementation for Spotify to Plex",
     "keywords": [
         "spotify",
