@@ -34,7 +34,7 @@ echo "✅ Error Log: /app/config/error_log.txt"
 if [ -f /app/config/tiddl_settings.json ]; then
     if jq -e '.token' /app/config/tiddl_settings.json > /dev/null 2>&1; then
         echo "✅ Tiddl token found - copying to /root/.tiddl_config.json"
-        cp /app/config/tiddl_settings.json /root/.tiddl_config.json
+        cp /app/config/tiddl_settings.json /root/tiddl.json
         echo "✅ Tiddl authenticated and ready"
     else
         echo "⚠️  Warning: Tiddl token not found in tiddl_settings.json"
@@ -43,6 +43,15 @@ if [ -f /app/config/tiddl_settings.json ]; then
         echo "   tiddl"
     fi
 else
+    # Set default tiddl download folder to /app/download (tiddl config prompts the create of config file)
+    tiddl config
+    if [ -f /root/tiddl.json ]; then
+        jq '.download.path="/app/download" | .download.scan_path="/app/download"' /root/tiddl.json > /root/tiddl.json.tmp && \
+        mv /root/tiddl.json.tmp /root/tiddl.json
+        echo "✅ Updated /root/tiddl.json default download path to /app/download"
+    else
+        echo "⚠️ Tiddl did not generate /root/tiddl.json";
+    fi
     echo "⚠️  Warning: Tiddl not configured (no tiddl_settings.json found)"
     echo "   Please login first:"
     echo "   docker exec -it spotify-to-plex-tidal-downloader bash"
