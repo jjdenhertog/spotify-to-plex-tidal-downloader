@@ -58,7 +58,7 @@ The scheduler will automatically process both `missing_tracks_tidal.txt` and `mi
 ```sh
 docker run -d \
     -v /path/to/spotify-to-plex/config:/app/config:rw \
-    -v /path/to/music/library:/app/download:rw \
+    -v /path/to/music/library:/root/Music/Tiddl:rw \
     -e TZ=UTC \
     -e CRON_SCHEDULE="0 15 * * *" \
     --name=spotify-to-plex-tidal-downloader \
@@ -70,7 +70,7 @@ docker run -d \
 ```sh
 docker run -d \
     -v /volume1/docker/spotify-to-plex/config:/app/config:rw \
-    -v /volume1/music:/app/download:rw \
+    -v /volume1/music:/root/Music/Tiddl:rw \
     -e TZ=Europe/Amsterdam \
     -e CRON_SCHEDULE="0 15 * * *" \
     --name=spotify-to-plex-tidal-downloader \
@@ -90,7 +90,7 @@ services:
         restart: unless-stopped
         volumes:
             - '/path/to/spotify-to-plex/config:/app/config'
-            - '/path/to/music/library:/app/download'
+            - '/path/to/music/library:/root/Music/Tiddl'
         environment:
             - TZ=UTC
             - CRON_SCHEDULE=0 15 * * *
@@ -106,7 +106,7 @@ services:
         restart: unless-stopped
         volumes:
             - '/volume1/docker/spotify-to-plex/config:/app/config'
-            - '/volume1/music:/app/download'
+            - '/volume1/music:/root/Music/Tiddl'
         environment:
             - TZ=Europe/Amsterdam
             - CRON_SCHEDULE=0 2,14 * * *
