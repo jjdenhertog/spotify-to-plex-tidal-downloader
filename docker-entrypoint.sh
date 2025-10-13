@@ -34,7 +34,7 @@ echo "✅ Error Log: /app/config/error_log.txt"
 if [ -f /app/config/tiddl_settings.json ]; then
     if jq -e '.token' /app/config/tiddl_settings.json > /dev/null 2>&1; then
         echo "✅ Tiddl token found - copying to /root/.tiddl_config.json"
-        cp /app/config/tiddl_settings.json /root/.tiddl_config.json
+        cp /app/config/tiddl_settings.json /root/tiddl.json
         echo "✅ Tiddl authenticated and ready"
     else
         echo "⚠️  Warning: Tiddl token not found in tiddl_settings.json"
