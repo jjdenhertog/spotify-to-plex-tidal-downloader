@@ -5,7 +5,7 @@ CONFIG_DIR="/app/config"
 LINKS_FILE="$CONFIG_DIR/$1"
 LOG_FILE="$CONFIG_DIR/tidal_dl_logs.json"
 TOKEN_FILE="$CONFIG_DIR/tiddl_settings.json"
-TARGET_TOKEN_FILE="/root/.tiddl_config.json"
+TARGET_TOKEN_FILE="/root/tiddl.json"
 
 # Constants
 TIME_LIMIT=$((48 * 60 * 60)) # 48 hours in seconds
@@ -100,7 +100,7 @@ main() {
     log "Download process completed."
 
     log "Storing token."
-    cp /root/.tiddl_config.json /app/config/tiddl_settings.json
+    cp "$TARGET_TOKEN_FILE" "$TOKEN_FILE"
 }
 
 main "$@"
