@@ -84,11 +84,11 @@ main() {
     fi
 
     if [[ -f "$TOKEN_FILE" ]]; then
-        if jq -e '.token' "$TOKEN_FILE" >/dev/null 2>&1; then
-            log "Token file contains 'token'. Copying to $TARGET_TOKEN_FILE..."
+        if jq -e '.auth.token' "$TOKEN_FILE" >/dev/null 2>&1; then
+            log "Token found in auth.token. Copying to $TARGET_TOKEN_FILE..."
             cp "$TOKEN_FILE" "$TARGET_TOKEN_FILE"
         else
-            log "Token file does not contain 'token'. Skipping copy step."
+            log "Token not found in auth.token. Skipping copy step."
         fi
     else
         log "Token file not found. Skipping token copy step."
