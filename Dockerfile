@@ -43,14 +43,6 @@ COPY copy-files/scheduler.py /app/scheduler.py
 COPY copy-files/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 
-# Set default tiddl download folder to /app/download
-RUN if [ -f /root/tiddl.json ]; then \
-        jq '.download.path="/app/download" | .download.scan_path="/app/download"' /root/tiddl.json > /root/tiddl.json.tmp && \
-        mv /root/tiddl.json.tmp /root/tiddl.json; \
-    else \
-        echo "⚠️ Tiddl did not generate /root/tiddl.json during build"; \
-    fi
-
 # Set permissions
 RUN chmod +x /app/download.sh && \
     chmod +x /app/scheduler.py && \
