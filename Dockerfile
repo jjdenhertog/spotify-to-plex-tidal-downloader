@@ -40,7 +40,6 @@ RUN mkdir -p /app/download && \
 # Copy application files
 COPY copy-files/download.sh /app/download.sh
 COPY copy-files/scheduler.py /app/scheduler.py
-COPY copy-files/tiddl_settings.json /root/.tiddl_config.json
 COPY copy-files/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 
