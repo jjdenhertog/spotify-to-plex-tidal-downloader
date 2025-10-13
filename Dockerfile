@@ -15,6 +15,8 @@ RUN apt-get update && \
         build-essential \
         curl \
         ffmpeg \
+        screen \
+        nano \
         ca-certificates \
         jq && \
     rm -rf /var/lib/apt/lists/*
