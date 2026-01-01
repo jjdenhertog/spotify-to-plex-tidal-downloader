@@ -1,33 +1,20 @@
-FROM ubuntu:22.04
+FROM python:3.13-slim
 
 # Set a default shell
 SHELL ["/bin/bash", "-c"]
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies and Python 3.11 (available in Ubuntu 22.04 by default)
+# Install system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        python3.11 \
-        python3.11-venv \
-        python3.11-dev \
-        python3-pip \
-        build-essential \
-        curl \
         ffmpeg \
-        screen \
-        nano \
-        ca-certificates \
         jq && \
     rm -rf /var/lib/apt/lists/*
 
-# Update pip for Python 3.11
-RUN python3.11 -m pip install --upgrade pip
-
 # Install Python packages
-RUN pip3.11 install --no-cache-dir \
-    tiddl \
-    mutagen \
+RUN pip install --no-cache-dir \
+    tiddl==3.1.5 \
     supervisor \
     apscheduler \
     pytz \
@@ -45,6 +32,9 @@ COPY copy-files/download.sh /app/download.sh
 COPY copy-files/scheduler.py /app/scheduler.py
 COPY copy-files/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker-entrypoint.sh /docker-entrypoint.sh
+
+# Create tiddl config directory
+RUN mkdir -p /root/.tiddl
 
 # Set permissions
 RUN chmod +x /app/download.sh && \

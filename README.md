@@ -41,6 +41,7 @@ You can install the service using Docker. This will install [Tiddl](https://gith
 **Volumes to bind:**
 - `/app/config` - Shared configuration and logs (must be the same as Spotify to Plex config volume)
 - `/app/download` - Downloaded music files (link to your media library folder)
+- `/root/.tiddl` - Tiddl authentication and config (persists login across container restarts)
 
 **Note**: You can also use this service standalone by manually creating text files in `/app/config` with Tidal links structured like the [example](misc/example.txt).
 
@@ -59,6 +60,7 @@ The scheduler will automatically process both `missing_tracks_tidal.txt` and `mi
 docker run -d \
     -v /path/to/spotify-to-plex/config:/app/config:rw \
     -v /path/to/music/library:/app/download:rw \
+    -v /path/to/tiddl-config:/root/.tiddl:rw \
     -e TZ=UTC \
     -e CRON_SCHEDULE="0 15 * * *" \
     --name=spotify-to-plex-tidal-downloader \
@@ -71,6 +73,7 @@ docker run -d \
 docker run -d \
     -v /volume1/docker/spotify-to-plex/config:/app/config:rw \
     -v /volume1/music:/app/download:rw \
+    -v /volume1/docker/spotify-to-plex/config/tiddl:/root/.tiddl:rw \
     -e TZ=Europe/Amsterdam \
     -e CRON_SCHEDULE="0 15 * * *" \
     --name=spotify-to-plex-tidal-downloader \
@@ -91,6 +94,7 @@ services:
         volumes:
             - '/path/to/spotify-to-plex/config:/app/config'
             - '/path/to/music/library:/app/download'
+            - '/path/to/tiddl-config:/root/.tiddl'
         environment:
             - TZ=UTC
             - CRON_SCHEDULE=0 15 * * *
@@ -107,6 +111,7 @@ services:
         volumes:
             - '/volume1/docker/spotify-to-plex/config:/app/config'
             - '/volume1/music:/app/download'
+            - '/volume1/docker/spotify-to-plex/config/tiddl:/root/.tiddl'
         environment:
             - TZ=Europe/Amsterdam
             - CRON_SCHEDULE=0 2,14 * * *
@@ -116,7 +121,7 @@ services:
 ### First time login
 
 Before you can use this service you need to login to Tiddl. Login to the console of the running container:
-
+ 
 ```bash
 docker exec -it spotify-to-plex-tidal-downloader bash
 ```
@@ -129,29 +134,28 @@ tiddl auth login
 
 ### Configuration
 
-In the settings file you can modify the way files are downloaded, such as the naming and which quality. It is better to do this after the `tiddl_settings.json` file has been created in your setup. You can than open that file and modify those settings. Below an example of this settings file:
+Tiddl configuration is stored in `/root/.tiddl/config.toml` (which persists via the volume mount). A default config is created automatically on first run. You can modify settings by editing the `config.toml` file in your mounted tiddl config directory.
 
-```json
-{
-  "template": {
-    "track": "{album_artist}/{album}/{number:02d} - {artist} - {title}",
-    "video": "{album_artist}/{album}/{number:02d} - {artist} - {title}",
-    "album": "{album_artist}/{album}/{number:02d} - {title}",
-    "playlist": "{playlist}/{playlist_number:02d} - {artist} - {title}"
-  },
-  "download": {
-    "quality": "master",
-    "path": "/app/download",
-    "threads": 4,
-    "singles_filter": "none",
-    "embed_lyrics": false,
-    "download_video": false,
-    "scan_path": "/app/download",
-    "save_playlist_m3u": false
-  },
-  ...
-}
+Example configuration:
+
+```toml
+[download]
+download_path = "/app/download"
+scan_path = "/app/download"
+track_quality = "max"      # Options: low, normal, high, max
+skip_existing = true
+threads_count = 4
+
+[metadata]
+enable = true
+lyrics = false
+cover = false
+
+[templates]
+default = "{album.artist}/{album.title}/{item.number:02d} - {item.title}"
 ```
+
+See the [tiddl documentation](https://github.com/oskvr37/tiddl) for all available configuration options.
 
 -----------
 

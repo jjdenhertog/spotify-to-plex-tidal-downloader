@@ -4,8 +4,6 @@
 CONFIG_DIR="/app/config"
 LINKS_FILE="$CONFIG_DIR/$1"
 LOG_FILE="$CONFIG_DIR/tidal_dl_logs.json"
-TOKEN_FILE="$CONFIG_DIR/tiddl_settings.json"
-TARGET_TOKEN_FILE="/root/tiddl.json"
 
 # Constants
 TIME_LIMIT=$((48 * 60 * 60)) # 48 hours in seconds
@@ -65,8 +63,8 @@ process_links() {
             continue
         fi
 
-        # Execute tidal-dl command safely
-        if tiddl url $link download >/dev/null 2>&1; then
+        # Execute tiddl download command (tiddl 3.x syntax)
+        if tiddl download url "$link" 2>&1; then
             log "Download successful for: $link"
             update_log "$link"
         else
@@ -83,24 +81,10 @@ main() {
         exit 1
     fi
 
-    if [[ -f "$TOKEN_FILE" ]]; then
-        if jq -e '.auth.token' "$TOKEN_FILE" >/dev/null 2>&1; then
-            log "Token found in auth.token. Copying to $TARGET_TOKEN_FILE..."
-            cp "$TOKEN_FILE" "$TARGET_TOKEN_FILE"
-        else
-            log "Token not found in auth.token. Skipping copy step."
-        fi
-    else
-        log "Token file not found. Skipping token copy step."
-    fi
-
     initialize_files
     log "Starting download process..."
     process_links
     log "Download process completed."
-
-    log "Storing token."
-    cp "$TARGET_TOKEN_FILE" "$TOKEN_FILE"
 }
 
 main "$@"

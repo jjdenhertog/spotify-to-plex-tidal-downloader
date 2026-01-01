@@ -5,6 +5,7 @@ services:
     volumes:
       - ./storage:/app/config
       - ./downloads:/app/download
+      - ./storage/tiddl:/root/.tiddl  # Persist tiddl auth and config
     environment:
       - TZ=UTC
       # Run every 5 minutes for local testing (change to "0 */12 * * *" for production)

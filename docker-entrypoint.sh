@@ -30,33 +30,45 @@ echo "✅ Config Directory: /app/config"
 echo "✅ Download Logs: /app/config/download_logs"
 echo "✅ Error Log: /app/config/error_log.txt"
 
-# Check if tiddl is configured and copy token if available
-if [ -f /app/config/tiddl_settings.json ]; then
-    if jq -e '.token' /app/config/tiddl_settings.json > /dev/null 2>&1; then
-        echo "✅ Tiddl token found - copying to /root/.tiddl_config.json"
-        cp /app/config/tiddl_settings.json /root/tiddl.json
+# Check if tiddl is authenticated (tiddl 3.x uses ~/.tiddl/auth.json)
+TIDDL_AUTH_FILE="/root/.tiddl/auth.json"
+
+if [ -f "$TIDDL_AUTH_FILE" ]; then
+    if jq -e '.token' "$TIDDL_AUTH_FILE" > /dev/null 2>&1; then
         echo "✅ Tiddl authenticated and ready"
     else
-        echo "⚠️  Warning: Tiddl token not found in tiddl_settings.json"
-        echo "   Please login first:"
+        echo "⚠️  Warning: Tiddl auth file exists but token is missing"
+        echo "   Please login:"
         echo "   docker exec -it spotify-to-plex-tidal-downloader bash"
-        echo "   tiddl"
+        echo "   tiddl auth login"
     fi
 else
-    # Set default tiddl download folder to /app/download (tiddl config prompts the create of config file)
-    tiddl config
-    if [ -f /root/tiddl.json ]; then
-        jq '.download.path="/app/download" | .download.scan_path="/app/download"' /root/tiddl.json > /root/tiddl.json.tmp && \
-        mv /root/tiddl.json.tmp /root/tiddl.json
-        echo "✅ Updated /root/tiddl.json default download path to /app/download"
-    else
-        echo "⚠️ Tiddl did not generate /root/tiddl.json";
-    fi
-    echo "⚠️  Warning: Tiddl not configured (no tiddl_settings.json found)"
+    echo "⚠️  Warning: Tiddl not authenticated"
     echo "   Please login first:"
     echo "   docker exec -it spotify-to-plex-tidal-downloader bash"
-    echo "   tiddl"
-    echo "   (The token will be saved to /app/config/tiddl_settings.json)"
+    echo "   tiddl auth login"
+fi
+
+# Initialize tiddl config if needed (set download path)
+TIDDL_CONFIG_FILE="/root/.tiddl/config.toml"
+if [ ! -f "$TIDDL_CONFIG_FILE" ]; then
+    echo "📝 Creating default tiddl config..."
+    mkdir -p /root/.tiddl
+    cat > "$TIDDL_CONFIG_FILE" << 'EOF'
+[download]
+download_path = "/app/download"
+scan_path = "/app/download"
+track_quality = "max"
+skip_existing = true
+threads_count = 4
+
+[metadata]
+enable = true
+
+[templates]
+default = "{album.artist}/{album.title}/{item.number:02d} - {item.title}"
+EOF
+    echo "✅ Created default tiddl config"
 fi
 
 # Check if download files exist
