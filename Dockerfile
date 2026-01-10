@@ -9,7 +9,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ffmpeg \
-        jq && \
+        jq \
+        screen \
+        nano && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Python packages

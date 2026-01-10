@@ -1,6 +1,6 @@
 {
     "name": "@jjdenhertog/spotify-to-plex-tidal-downloader",
-    "version": "1.0.85",
+    "version": "1.0.86",
     "description": "Tiddl implementation for Spotify to Plex",
     "keywords": [
         "spotify",
@@ -11,7 +11,8 @@
         "docker:dev": "npm run docker:build && docker-compose down && docker-compose up -d",
         "docker:build": "docker build -t jjdenhertog/spotify-to-plex-tidal-downloader:dev .",
         "docker:push": "PACKAGE_VERSION=$(grep '\"version\"' package.json | cut -d '\"' -f 4 | head -n 1) && docker buildx build --platform=linux/amd64,linux/arm64 -t jjdenhertog/spotify-to-plex-tidal-downloader:latest -t jjdenhertog/spotify-to-plex-tidal-downloader:$PACKAGE_VERSION --push .",
-        "deploy": "npm version patch --no-git-tag-version && npm run docker:push"
+        "deploy": "npm version patch && npm run docker:push && npm run release",
+        "release": "PACKAGE_VERSION=$(grep '\"version\"' package.json | cut -d '\"' -f 4 | head -n 1) && git push && git push --tags && gh release create v$PACKAGE_VERSION --generate-notes --title \"v$PACKAGE_VERSION\""
     },
     "dependencies": {}
 }
