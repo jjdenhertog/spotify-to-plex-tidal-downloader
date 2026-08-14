@@ -4,9 +4,15 @@
 CONFIG_DIR="/app/config"
 LINKS_FILE="$CONFIG_DIR/$1"
 LOG_FILE="$CONFIG_DIR/tidal_dl_logs.json"
+AUTH_FILE="/root/.tiddl/auth.json"
 
 # Constants
 TIME_LIMIT=$((48 * 60 * 60)) # 48 hours in seconds
+
+# Counters
+total=0
+failed=0
+skipped=0
 
 # Function to print messages
 log() {
@@ -25,7 +31,30 @@ initialize_files() {
     fi
 }
 
-# Check if a link was processed more than 48 hours ago
+# tiddl exits 0 even when it is not authenticated, so check up front.
+# Without this every link would be reported as downloaded successfully.
+check_auth() {
+    if [[ ! -f "$AUTH_FILE" ]] || ! jq -e '.token // empty' "$AUTH_FILE" >/dev/null 2>&1; then
+        log "Error: tiddl is not authenticated. Run 'tiddl auth login' inside the container."
+        exit 1
+    fi
+
+    local refresh_output
+    local refresh_status
+    refresh_output=$(tiddl auth refresh 2>&1)
+    refresh_status=$?
+    echo "$refresh_output"
+
+    # An expired or revoked token makes the refresh throw, which would otherwise
+    # show up as every single link failing to download.
+    if [[ $refresh_status -ne 0 ]] || grep -qi "not logged in" <<<"$refresh_output"; then
+        log "Error: tiddl token is no longer valid. Run 'tiddl auth login' inside the container."
+        exit 1
+    fi
+}
+
+# Check if a link was first tried more than 48 hours ago.
+# Links are retried on every run for 48 hours, then given up on.
 link_too_old() {
     local link="$1"
     local timestamp
@@ -37,7 +66,7 @@ link_too_old() {
     return 1
 }
 
-# Update the log file
+# Record the first time we tried a link
 update_log() {
     local link="$1"
     local timestamp=$(date +%s)
@@ -51,24 +80,33 @@ update_log() {
 # Main processing loop
 process_links() {
     while IFS= read -r link || [[ -n "$link" ]]; do
+        # Strip carriage returns and surrounding whitespace
+        link="${link//$'\r'/}"
+        link="${link#"${link%%[![:space:]]*}"}"
+        link="${link%"${link##*[![:space:]]}"}"
+
         if [[ -z "$link" ]]; then
             continue
         fi
 
-        log "Processing link: $link"
-
-        # Skip if processed recently
+        # Skip if we have been retrying this one for over 48 hours
         if link_too_old "$link"; then
-            log "Skipping: Tried to sync this link longer than 48 hours ago."
+            log "Skipping: first tried this link more than 48 hours ago."
+            skipped=$((skipped + 1))
             continue
         fi
 
-        # Execute tiddl download command (tiddl 3.x syntax)
-        if tiddl download url "$link" 2>&1; then
+        total=$((total + 1))
+        log "Processing link: $link"
+
+        # --raise-errors makes tiddl exit non-zero on a failed resource;
+        # without it failures are swallowed and reported as success.
+        if tiddl download --raise-errors url "$link" 2>&1; then
             log "Download successful for: $link"
             update_log "$link"
         else
-            log "Error: Download failed for $link. Retrying may be necessary."
+            log "Error: Download failed for $link. Will retry on the next run."
+            failed=$((failed + 1))
         fi
     done <"$LINKS_FILE"
 }
@@ -82,9 +120,18 @@ main() {
     fi
 
     initialize_files
+    check_auth
+
     log "Starting download process..."
     process_links
-    log "Download process completed."
+    log "Download process completed. attempted=$total failed=$failed skipped=$skipped"
+
+    # Only treat this as a run failure when nothing at all got through --
+    # individual unavailable tracks are normal and get retried for 48 hours.
+    if [[ $total -gt 0 && $failed -eq $total ]]; then
+        log "Error: every download in this run failed."
+        exit 1
+    fi
 }
 
 main "$@"

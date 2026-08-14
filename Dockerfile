@@ -16,7 +16,7 @@ RUN apt-get update && \
 
 # Install Python packages
 RUN pip install --no-cache-dir \
-    tiddl==3.1.5 \
+    tiddl==3.4.4 \
     supervisor \
     apscheduler \
     pytz \
@@ -33,6 +33,8 @@ RUN mkdir -p /app/download && \
 COPY copy-files/download.sh /app/download.sh
 COPY copy-files/scheduler.py /app/scheduler.py
 COPY copy-files/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+# So `supervisorctl status` works without -c when debugging inside the container
+RUN ln -s /etc/supervisor/conf.d/supervisord.conf /etc/supervisord.conf
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 
 # Create tiddl config directory

@@ -22,7 +22,7 @@ LOG_DIR = CONFIG_DIR / 'download_logs'
 ERROR_LOG_FILE = CONFIG_DIR / 'error_log.txt'
 APP_DIR = Path('/app')
 
-# Filecs to process (in order)
+# Files to process (in order)
 DOWNLOAD_FILES = [
     'missing_tracks_tidal.txt',
     'missing_albums_tidal.txt'
@@ -66,10 +66,11 @@ def run_download_script(filename):
     """
     file_path = CONFIG_DIR / filename
 
-    # Check if file exists
+    # A missing file is expected when Spotify to Plex has nothing to hand over,
+    # so it is not an error worth writing to error_log.txt
     if not file_path.exists():
-        log_error(f"File not found: {filename}")
-        return False, f"File not found: {filename}"
+        logger.info(f"Skipping {filename}: file not found")
+        return True, "File not found, skipping"
 
     # Check if file is empty
     if file_path.stat().st_size == 0:

@@ -142,9 +142,10 @@ Example configuration:
 [download]
 download_path = "/app/download"
 scan_path = "/app/download"
-track_quality = "max"      # Options: low, normal, high, max
+track_quality = "high"     # Options: low, normal, high, max
 skip_existing = true
 threads_count = 4
+atmos_filter = "none"      # Options: none, allow, only
 
 [metadata]
 enable = true
@@ -156,6 +157,8 @@ default = "{album.artist}/{album.title}/{item.number:02d} - {item.title}"
 ```
 
 See the [tiddl documentation](https://github.com/oskvr37/tiddl) for all available configuration options.
+
+**A note on `track_quality`**: since tiddl 3.4.0 the `max` setting (HI_RES_LOSSLESS) can no longer be obtained with tiddl's default credentials, so hi-res tracks will fail to download. `high` (LOSSLESS, FLAC 16/44.1) is the recommended setting and is used for new installs. If your existing config still says `max`, the container will warn you on startup.
 
 -----------
 
@@ -189,6 +192,8 @@ The service provides comprehensive logging:
 - **Scheduler logs**: Visible via `docker logs spotify-to-plex-tidal-downloader`
 - **Download logs**: Stored in `/app/config/download_logs/` (timestamped for each run)
 - **Error logs**: Stored in `/app/config/error_log.txt`
+
+A run is reported as failed when tiddl is not logged in, when the Tidal token has expired, or when every download in the run failed. Individual unavailable tracks are not treated as a run failure — they are retried on each run for 48 hours before being given up on.
 
 To view real-time scheduler logs:
 

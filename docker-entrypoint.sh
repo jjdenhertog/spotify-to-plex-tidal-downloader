@@ -58,9 +58,13 @@ if [ ! -f "$TIDDL_CONFIG_FILE" ]; then
 [download]
 download_path = "/app/download"
 scan_path = "/app/download"
-track_quality = "max"
+# "high" = LOSSLESS (FLAC 16/44.1). "max" (HI_RES_LOSSLESS) is not obtainable
+# with tiddl's default credentials since v3.4.0, so it only causes failures.
+track_quality = "high"
 skip_existing = true
 threads_count = 4
+# Dolby Atmos files confuse most Plex setups, keep them out.
+atmos_filter = "none"
 
 [metadata]
 enable = true
@@ -69,6 +73,11 @@ enable = true
 default = "{album.artist}/{album.title}/{item.number:02d} - {item.title}"
 EOF
     echo "✅ Created default tiddl config"
+elif grep -qE '^\s*track_quality\s*=\s*"max"' "$TIDDL_CONFIG_FILE"; then
+    echo "⚠️  Warning: your tiddl config uses track_quality = \"max\""
+    echo "   Since tiddl 3.4.0 HI_RES_LOSSLESS is not available with the default"
+    echo "   credentials. Change it to \"high\" in $TIDDL_CONFIG_FILE to avoid"
+    echo "   failed downloads on hi-res tracks."
 fi
 
 # Check if download files exist
