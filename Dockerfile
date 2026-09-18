@@ -46,8 +46,12 @@ RUN chmod +x /app/download.sh && \
     chmod +x /docker-entrypoint.sh
 
 # Set default environment variables
+# PYTHONUNBUFFERED: flush log lines immediately instead of in blocks.
+# COLUMNS: tiddl (rich) has no terminal here and would wrap at 80 characters.
 ENV TZ=UTC \
-    CRON_SCHEDULE="0 */12 * * *"
+    CRON_SCHEDULE="0 */12 * * *" \
+    PYTHONUNBUFFERED=1 \
+    COLUMNS=200
 
 # Set entrypoint for initialization
 ENTRYPOINT ["/docker-entrypoint.sh"]

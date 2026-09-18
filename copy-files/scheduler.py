@@ -5,9 +5,11 @@ Runs download.sh scripts on a configurable cron schedule
 """
 
 import os
+import signal
 import sys
 import subprocess
 import logging
+import threading
 from datetime import datetime
 from pathlib import Path
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -21,6 +23,7 @@ CONFIG_DIR = Path('/app/config')
 LOG_DIR = CONFIG_DIR / 'download_logs'
 ERROR_LOG_FILE = CONFIG_DIR / 'error_log.txt'
 APP_DIR = Path('/app')
+DOWNLOAD_TIMEOUT = 7200  # 2 hours per file
 
 # Files to process (in order)
 DOWNLOAD_FILES = [
@@ -79,43 +82,66 @@ def run_download_script(filename):
 
     logger.info(f"Starting download for: {filename}")
 
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    log_filename = LOG_DIR / f"{filename.replace('.txt', '')}_{timestamp}.log"
+
     try:
-        # Execute the download script
-        result = subprocess.run(
+        # Stream the output line by line so progress shows up in the container
+        # logs (Portainer / docker logs) while the download is running, instead
+        # of only in the log file once everything has finished.
+        process = subprocess.Popen(
             ['bash', str(APP_DIR / 'download.sh'), filename],
             cwd=str(APP_DIR),
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
-            timeout=7200  # 2 hour timeout
+            bufsize=1,
+            start_new_session=True  # own process group, so a timeout also kills tiddl
         )
 
-        # Prepare log output
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        log_filename = LOG_DIR / f"{filename.replace('.txt', '')}_{timestamp}.log"
+        # Kill the script when it exceeds the 2 hour timeout
+        timed_out = threading.Event()
 
-        # Write output to log file
-        with open(log_filename, 'w') as f:
-            f.write(f"=== Download Log for {filename} ===\n")
-            f.write(f"Start time: {timestamp}\n")
-            f.write(f"Exit code: {result.returncode}\n\n")
-            f.write("=== STDOUT ===\n")
-            f.write(result.stdout)
-            f.write("\n\n=== STDERR ===\n")
-            f.write(result.stderr)
+        def kill_on_timeout():
+            timed_out.set()
+            os.killpg(process.pid, signal.SIGKILL)
+
+        timer = threading.Timer(DOWNLOAD_TIMEOUT, kill_on_timeout)
+        timer.start()
+
+        output = []
+        try:
+            with open(log_filename, 'w') as f:
+                f.write(f"=== Download Log for {filename} ===\n")
+                f.write(f"Start time: {timestamp}\n\n")
+
+                for line in process.stdout:
+                    line = line.rstrip('\n')
+                    output.append(line)
+                    print(f"  [{filename}] {line}", flush=True)
+                    f.write(line + '\n')
+                    f.flush()
+
+                process.wait()
+                f.write(f"\nExit code: {process.returncode}\n")
+        finally:
+            timer.cancel()
+
+        output = '\n'.join(output)
+
+        if timed_out.is_set():
+            log_error(f"Download script timed out for {filename} (exceeded 2 hours)")
+            return False, "Timeout"
 
         # Check if successful
-        if result.returncode == 0:
+        if process.returncode == 0:
             logger.info(f"✓ Successfully completed download for: {filename}")
-            return True, result.stdout
+            return True, output
         else:
-            error_msg = f"Download script failed for {filename} (exit code: {result.returncode})"
+            error_msg = f"Download script failed for {filename} (exit code: {process.returncode})"
             log_error(error_msg)
-            return False, result.stderr
+            return False, output
 
-    except subprocess.TimeoutExpired:
-        error_msg = f"Download script timed out for {filename} (exceeded 2 hours)"
-        log_error(error_msg)
-        return False, "Timeout"
     except Exception as e:
         log_error(f"Exception while running download for {filename}", e)
         return False, str(e)
@@ -197,7 +223,9 @@ def main():
             misfire_grace_time=3600  # Allow 1 hour grace time for missed jobs
         )
 
+        next_run = trigger.get_next_fire_time(None, datetime.now(tz))
         logger.info("Scheduler configured successfully. Starting...")
+        logger.info(f"Next download run: {next_run.strftime('%Y-%m-%d %H:%M:%S %Z')}")
         logger.info("Press Ctrl+C to stop")
         logger.info("=" * 60)
 
