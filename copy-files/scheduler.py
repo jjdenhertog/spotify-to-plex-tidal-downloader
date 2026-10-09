@@ -15,6 +15,7 @@ from pathlib import Path
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 import pytz
+from download_queue import DOWNLOAD_LOCK, start_api
 
 # Configuration from environment variables
 CRON_SCHEDULE = os.getenv('CRON_SCHEDULE', '0 15 * * *')  # Default: daily at 15:00
@@ -24,6 +25,11 @@ LOG_DIR = CONFIG_DIR / 'download_logs'
 ERROR_LOG_FILE = CONFIG_DIR / 'error_log.txt'
 APP_DIR = Path('/app')
 DOWNLOAD_TIMEOUT = 7200  # 2 hours per file
+API_PORT = os.getenv('API_PORT', '').strip()  # Queue API, only started when set
+API_TOKEN = os.getenv('API_TOKEN', '').strip() or None
+
+# Set when the queue API is running
+download_queue = None
 
 # Files to process (in order)
 DOWNLOAD_FILES = [
@@ -157,14 +163,16 @@ def run_scheduled_job():
 
     results = {}
 
-    # Process each file sequentially
-    for filename in DOWNLOAD_FILES:
-        success, output = run_download_script(filename)
-        results[filename] = {'success': success, 'output': output}
+    # Shared with the queue worker, so tiddl never runs twice at the same time
+    with DOWNLOAD_LOCK:
+        # Process each file sequentially
+        for filename in DOWNLOAD_FILES:
+            success, output = run_download_script(filename)
+            results[filename] = {'success': success, 'output': output}
 
-        # Continue to next file even if this one failed
-        if not success:
-            logger.warning(f"Failed to process {filename}, continuing to next file...")
+            # Continue to next file even if this one failed
+            if not success:
+                logger.warning(f"Failed to process {filename}, continuing to next file...")
 
     # Summary
     logger.info("=" * 60)
@@ -175,6 +183,33 @@ def run_scheduled_job():
         status = "✓" if result['success'] else "✗"
         logger.info(f"  {status} {filename}")
     logger.info("=" * 60)
+
+    # Retry whatever is still waiting in the queue
+    if download_queue:
+        download_queue.wake()
+
+
+def start_queue_api(scheduler):
+    """Start the queue API and its worker next to the scheduler"""
+    global download_queue
+
+    try:
+        port = int(API_PORT)
+    except ValueError:
+        log_error(f"Invalid API_PORT: {API_PORT}, queue API not started")
+        return
+
+    def next_scheduled_run():
+        job = scheduler.get_job('download_job')
+        return getattr(job, 'next_run_time', None) if job else None
+
+    try:
+        download_queue, _ = start_api(port, CONFIG_DIR, token=API_TOKEN, next_run=next_scheduled_run)
+    except Exception as e:
+        log_error(f"Failed to start queue API on port {port}", e)
+        return
+
+    logger.info(f"Queue API listening on port {port}" + ("" if API_TOKEN else " (no API_TOKEN set)"))
 
 
 def main():
@@ -224,6 +259,10 @@ def main():
         )
 
         next_run = trigger.get_next_fire_time(None, datetime.now(tz))
+
+        if API_PORT:
+            start_queue_api(scheduler)
+
         logger.info("Scheduler configured successfully. Starting...")
         logger.info(f"Next download run: {next_run.strftime('%Y-%m-%d %H:%M:%S %Z')}")
         logger.info("Press Ctrl+C to stop")

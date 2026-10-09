@@ -18,6 +18,7 @@ You can also use it without [Spotify to Plex](https://github.com/jjdenhertog/spo
   * [Automatic Scheduling](#automatic-scheduling)
   * [Manual Execution](#manual-execution)
   * [Logging](#logging)
+* [Queue API](#queue-api)
 * [Support This Open-Source Project ❤️](#support-this-open-source-project-️)
 * [Libraries and reference](#libraries-and-reference)
 * [Disclaimer](#disclaimer)
@@ -207,6 +208,92 @@ To view the latest download log:
 ls -lt /path/to/config/download_logs/ | head -n 2
 cat /path/to/config/download_logs/<latest-log-file>
 ```
+
+## Queue API
+
+Besides the txt files, the container can run a small HTTP API so another service can ask for specific Tidal tracks or albums to be downloaded right away. It is off by default; nothing changes unless you set `API_PORT`.
+
+### Environment variables
+
+- `API_PORT`: port the API listens on inside the container, e.g. `8791`. The API only starts when this is set.
+- `API_TOKEN`: optional. When set, every request needs the header `Authorization: Bearer <token>`, otherwise it gets a `401`.
+
+Publish the port to reach it from outside the container. With `docker run` add `-p 8791:8791 -e API_PORT=8791 -e API_TOKEN=change-me`. In a Portainer stack:
+
+```yaml
+        ports:
+            - '8791:8791'
+        environment:
+            - TZ=UTC
+            - CRON_SCHEDULE=0 15 * * *
+            - API_PORT=8791
+            - API_TOKEN=change-me
+```
+
+🚨 **Security**: the API has no TLS and lets anyone who can reach it start downloads. Keep it on your LAN (do not forward the port on your router) and set `API_TOKEN`.
+
+### How it works
+
+- Queued items are downloaded one at a time with tiddl, never at the same time as a scheduled run: a request that arrives during a scheduled run waits until that run is done.
+- The queue is processed right after every request that adds something, and again at the end of every scheduled run.
+- A failed download is retried on later runs for 48 hours after it was queued, then it is marked `failed`.
+- Successful downloads are recorded in `tidal_dl_logs.json`, the same file the txt flow uses, under the link `https://tidal.com/browse/track/<id>` or `https://tidal.com/browse/album/<id>`.
+- The queue is stored in `/app/config/download_queue.json` and survives restarts. Downloaded items are removed from it after 30 days.
+- Progress shows up in the container logs, prefixed with `[queue track/<id>]`.
+
+### Endpoints
+
+**Queue tracks and albums**: `POST /queue`
+
+```bash
+curl -X POST http://your-server:8791/queue \
+    -H "Authorization: Bearer change-me" \
+    -H "Content-Type: application/json" \
+    -d '{"tracks": ["309956", "100480232"], "albums": ["456"], "source": "my-script"}'
+```
+
+`tracks` and `albums` are lists of Tidal ids (digits only), at most 100 ids per request. `source` is an optional label of at most 40 characters. The queue holds at most 1000 items that are waiting or downloading; above that the request gets a `429`.
+
+The response (`202`) tells you what happened with every id. An id is `already` when it is queued, downloading, or was downloaded in the last 48 hours:
+
+```json
+{
+    "queued": [{"type": "track", "id": "309956"}, {"type": "album", "id": "456"}],
+    "already": [{"type": "track", "id": "100480232", "status": "done"}],
+    "invalid": []
+}
+```
+
+**List the queue**: `GET /queue`, optionally filtered with `?status=queued`, `downloading`, `done` or `failed`
+
+```json
+{
+    "items": [
+        {
+            "type": "track",
+            "id": "309956",
+            "status": "queued",
+            "source": "my-script",
+            "added_at": "2026-10-09T12:00:00+00:00",
+            "updated_at": "2026-10-09T12:05:00+00:00",
+            "attempts": 1,
+            "last_error": "Error: track not available"
+        }
+    ]
+}
+```
+
+**One item**: `GET /queue/track/<id>` or `GET /queue/album/<id>` returns the item, or `404`.
+
+**Remove an item**: `DELETE /queue/track/<id>` returns `204`, `404` when it is not in the queue, or `409` while it is downloading.
+
+**Health**: `GET /health`
+
+```json
+{"ok": true, "running": false, "queued": 2, "next_scheduled_run": "2026-10-09T15:00:00+00:00", "tidal_auth": "ok"}
+```
+
+`running` is true while a download (queue or scheduled) is in progress. `tidal_auth` is `ok` when tiddl has a login token, `missing` when you still need to run `tiddl auth login`, and `unknown` when the auth file cannot be read. It does not contact Tidal.
 
 ------------
 

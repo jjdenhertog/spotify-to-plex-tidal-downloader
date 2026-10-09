@@ -29,6 +29,13 @@ echo "✅ Timezone: $TZ"
 echo "✅ Config Directory: /app/config"
 echo "✅ Download Logs: /app/config/download_logs"
 echo "✅ Error Log: /app/config/error_log.txt"
+if [ -n "$API_PORT" ]; then
+    if [ -n "$API_TOKEN" ]; then
+        echo "✅ Queue API: port $API_PORT (token required)"
+    else
+        echo "⚠️  Queue API: port $API_PORT without API_TOKEN, keep it on your LAN"
+    fi
+fi
 
 # Check if tiddl is authenticated (tiddl 3.x uses ~/.tiddl/auth.json)
 TIDDL_AUTH_FILE="/root/.tiddl/auth.json"

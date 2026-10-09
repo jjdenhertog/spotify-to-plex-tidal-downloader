@@ -32,6 +32,7 @@ RUN mkdir -p /app/download && \
 # Copy application files
 COPY copy-files/download.sh /app/download.sh
 COPY copy-files/scheduler.py /app/scheduler.py
+COPY copy-files/download_queue.py /app/download_queue.py
 COPY copy-files/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # So `supervisorctl status` works without -c when debugging inside the container
 RUN ln -s /etc/supervisor/conf.d/supervisord.conf /etc/supervisord.conf
@@ -52,6 +53,9 @@ ENV TZ=UTC \
     CRON_SCHEDULE="0 */12 * * *" \
     PYTHONUNBUFFERED=1 \
     COLUMNS=200
+
+# Queue API, only listens when API_PORT is set (exposing does not publish it)
+EXPOSE 8791
 
 # Set entrypoint for initialization
 ENTRYPOINT ["/docker-entrypoint.sh"]
