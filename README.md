@@ -252,7 +252,7 @@ curl -X POST http://your-server:8791/queue \
     -d '{"tracks": ["309956", "100480232"], "albums": ["456"], "source": "my-script"}'
 ```
 
-`tracks` and `albums` are lists of Tidal ids (digits only), at most 100 ids per request. `source` is an optional label of at most 40 characters. The queue holds at most 1000 items that are waiting or downloading; above that the request gets a `429`.
+`tracks` and `albums` are lists of Tidal ids (digits only), at most 100 ids per request. An entry can also be an object with a `label` of at most 200 characters, so the queue can tell what it holds: `{"id": "309956", "label": "Artist - Title"}`. `source` is an optional label for who asked, of at most 40 characters. The queue holds at most 1000 items that are waiting or downloading; above that the request gets a `429`.
 
 The response (`202`) tells you what happened with every id. An id is `already` when it is queued, downloading, or was downloaded in the last 48 hours:
 
@@ -273,6 +273,7 @@ The response (`202`) tells you what happened with every id. An id is `already` w
             "type": "track",
             "id": "309956",
             "status": "queued",
+            "label": "Artist - Title",
             "source": "my-script",
             "added_at": "2026-10-09T12:00:00+00:00",
             "updated_at": "2026-10-09T12:05:00+00:00",

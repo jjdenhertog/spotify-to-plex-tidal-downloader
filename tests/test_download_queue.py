@@ -82,6 +82,16 @@ class TestQueueLogic(QueueTestCase):
         # Track 1 and album 1 are different items
         self.assertEqual(q.add(None, ['1'])['queued'], [{'type': 'album', 'id': '1'}])
 
+    def test_labels(self):
+        q = self.make_queue()
+        result = q.add([{'id': '5', 'label': 'Kokoroko - Age Of Ascent'}, '6'], None, 'woodhouse')
+        self.assertEqual(result['queued'], [{'type': 'track', 'id': '5'}, {'type': 'track', 'id': '6'}])
+        self.assertEqual(q.get('track', '5')['label'], 'Kokoroko - Age Of Ascent')
+        self.assertIsNone(q.get('track', '6')['label'])
+        self.assertEqual(q.add([{'id': 'x'}], None)['invalid'], ['track/x'])
+        with self.assertRaises(ValueError):
+            q.add([{'id': '7', 'label': 'x' * 201}], None)
+
     def test_bad_requests(self):
         q = self.make_queue()
         with self.assertRaises(ValueError):

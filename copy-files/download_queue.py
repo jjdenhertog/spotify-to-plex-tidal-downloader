@@ -33,6 +33,7 @@ ID_PATTERN = re.compile(r'^\d{1,20}$')
 MAX_IDS_PER_REQUEST = 100
 MAX_OPEN_ITEMS = 1000
 MAX_SOURCE_LENGTH = 40
+MAX_LABEL_LENGTH = 200
 MAX_BODY_BYTES = 64 * 1024
 RETRY_WINDOW = 48 * 60 * 60  # retry failed items for 48 hours, same as the txt flow
 DONE_RETENTION = 30 * 24 * 60 * 60  # prune done items after 30 days
@@ -121,6 +122,7 @@ class DownloadQueue:
             'id': item['id'],
             'status': item['status'],
             'source': item.get('source'),
+            'label': item.get('label'),
             'added_at': iso(item['added_at']),
             'updated_at': iso(item['updated_at']),
             'attempts': item['attempts'],
@@ -174,8 +176,16 @@ class DownloadQueue:
 
         result = {'queued': [], 'already': [], 'invalid': []}
         wanted = []
+        labels = {}
         for item_type, ids in (('track', tracks), ('album', albums)):
             for raw in ids:
+                # An entry is an id, or {"id": ..., "label": "Artist - Title"} so the queue can say what it holds
+                label = None
+                if isinstance(raw, dict):
+                    label = raw.get('label')
+                    raw = raw.get('id')
+                    if label is not None and (not isinstance(label, str) or len(label) > MAX_LABEL_LENGTH):
+                        raise ValueError(f'label must be text of at most {MAX_LABEL_LENGTH} characters')
                 if isinstance(raw, int) and not isinstance(raw, bool):
                     raw = str(raw)
                 if not isinstance(raw, str) or not ID_PATTERN.match(raw):
@@ -183,6 +193,8 @@ class DownloadQueue:
                     continue
                 if (item_type, raw) not in wanted:
                     wanted.append((item_type, raw))
+                if label:
+                    labels[(item_type, raw)] = label
 
         now = self.clock()
         tidal_log = self._read_tidal_log()
@@ -211,6 +223,7 @@ class DownloadQueue:
                     'id': item_id,
                     'status': 'queued',
                     'source': source,
+                    'label': labels.get((item_type, item_id)),
                     'added_at': now,
                     'updated_at': now,
                     'attempts': 0,
@@ -334,8 +347,9 @@ class DownloadQueue:
                     item.update(status='downloading', updated_at=self.clock())
                     self._save()
                     url = canonical_url(item['type'], item['id'])
+                    name = f"{url} ({item['label']})" if item.get('label') else url
 
-                logger.info(f"Queue: downloading {url}")
+                logger.info(f"Queue: downloading {name}")
                 try:
                     success, error = self._run_tiddl(key, url)
                 except Exception as e:
@@ -344,7 +358,7 @@ class DownloadQueue:
                 if success:
                     self._record_tidal_log(url)
                     self._update(key, status='done', last_error=None)
-                    logger.info(f"Queue: ✓ downloaded {url}")
+                    logger.info(f"Queue: ✓ downloaded {name}")
                     done += 1
                 else:
                     with self.state_lock:
